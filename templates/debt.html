@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Debt Management{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2>Debt Management</h2>
+        <form method="post">
+            <div class="form-group">
+                <label for="debt_name">Debt Name:</label>
+                <input type="text" class="form-control" id="debt_name" name="debt_name">
+            </div>
+            <div class="form-group">
+                <label for="initial_amount">Initial Amount:</label>
+                <input type="text" class="form-control" id="initial_amount" name="initial_amount">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Debt</button>
+        </form>
+        <h3 style="margin-top: 20px;">Manage Debts</h3>
+        <div class="debt-list">
+            {% for debt in debts %}
+            <div class="debt-item">
+                <h4>{{ debt.name }} - ${{ debt.remaining_amount }} remaining</h4>
+                <form method="post" action="{{ url_for('update_debt', debt_id=debt.id) }}">
+                    <div class="form-group">
+                        <label for="amount">Amount:</label>
+                        <input type="text" class="form-control" id="amount" name="amount">
+                    </div>
+                    <button type="submit" name="action" value="plus" class="btn btn-success">Add</button>
+                    <button type="submit" name="action" value="minus" class="btn btn-danger">Subtract</button>
+                    <form method="post" action="{{ url_for('delete_debt', debt_id=debt.id) }}" class="delete-form float-right">
+                        <button type="submit" name="action" value="delete" class="btn btn-outline-danger delete-button" onclick="return confirm('Are you sure you want to delete this debt?')">Delete</button>
+                    </form>
+                    
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        <h3>Debt Summary</h3>
+        <canvas id="debtChart"></canvas>
+    </div>
+</div>
+{% endblock %}
