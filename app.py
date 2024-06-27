@@ -8,6 +8,7 @@ import os
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
+app.config['UPLOAD_FOLDER'] = 'uploads' 
 
 # Database setup
 conn = sqlite3.connect('finance_manager.db', check_same_thread=False)
@@ -15,21 +16,21 @@ c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY,
                 username TEXT UNIQUE,
-                password_hash TEXT
+                password_hash TEXT,
+                balance REAL DEFAULT 0.0
             )''')
 
 c.execute('''CREATE TABLE IF NOT EXISTS expenses (
-                id INTEGER PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT,
                 category TEXT,
-                expense TEXT,
+                expense_name TEXT,
                 amount REAL,
-                currency TEXT,
                 payment_method TEXT,
                 date TEXT,
                 tags TEXT,
-                recurrence BOOLEAN,
-                attachments BLOB
+                attachments TEXT,
+                FOREIGN KEY(username) REFERENCES users(id)
             )''')
 
 c.execute('''CREATE TABLE IF NOT EXISTS debts (
@@ -46,6 +47,22 @@ c.execute('''CREATE TABLE IF NOT EXISTS incomes (
                 source TEXT,
                 amount REAL,
                 date TEXT
+            )''')
+c.execute('''CREATE TABLE IF NOT EXISTS budgets (
+                id INTEGER PRIMARY KEY,
+                username TEXT,
+                category TEXT,
+                budget_amount REAL,
+                FOREIGN KEY(username) REFERENCES users(username)
+            )''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS saving_goals (
+                id INTEGER PRIMARY KEY,
+                username TEXT,
+                goal_name TEXT,
+                target_amount REAL,
+                saved_amount REAL DEFAULT 0.0,
+                FOREIGN KEY(username) REFERENCES users(username)
             )''')
 conn.commit()
 
@@ -175,53 +192,78 @@ def expense():
     
     if request.method == 'POST':
         category = request.form['category']
-        expense_name = request.form['expense']
-        amount = request.form['amount']
+        expense_name = request.form['expense_name']
+        amount = float(request.form['amount'])
+        payment_method = request.form['payment_method']
         date = request.form['date']
+        tags = request.form['tags']
+        attachments = request.files.getlist('attachments')
+        
+        # Handle file uploads
+        attachment_paths = []
+        for attachment in attachments:
+            if attachment.filename != '':
+                attachment_path = os.path.join(app.config['UPLOAD_FOLDER'], attachment.filename)
+                attachment.save(attachment_path)
+                attachment_paths.append(attachment_path)
 
         if category and expense_name and amount and date:
-            c.execute("INSERT INTO expenses (username, category, expense, amount, date) VALUES (?, ?, ?, ?, ?)", 
-                      (current_user, category, expense_name, float(amount), date))
+            c.execute("INSERT INTO expenses (username, category, expense_name, amount, payment_method, date, tags, attachments) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+                      (current_user, category, expense_name, amount, payment_method, date, tags, None))
             conn.commit()
             flash('Expense added successfully', 'success')
         else:
             flash('Please enter all details', 'error')
     
-    c.execute("SELECT category, expense, amount, date FROM expenses WHERE username=? ORDER BY date DESC LIMIT 10", (current_user,))
+    c.execute("SELECT category, expense_name, amount, date FROM expenses WHERE username=? ORDER BY date DESC LIMIT 10", (current_user,))
     expenses = c.fetchall()
     return render_template('expense.html', expenses=expenses, current_date=datetime.now().strftime('%Y-%m-%d'))
 
-@app.route('/submit_expense', methods=['POST'])
-def submit_expense():
-    # Handle form data
-    category = request.form.get('category')
-    expense = request.form.get('expense')
-    amount = request.form.get('amount')
-    currency = request.form.get('currency')
-    payment_method = request.form.get('payment_method')
-    tags = request.form.get('tags')
-    recurrence = request.form.get('recurrence')
-
-    # Handle file uploads
-    attachments = request.files.getlist('attachments')
-    attachment_paths = []
-    for attachment in attachments:
-        if attachment.filename != '':
-            attachment_path = os.path.join(app.config['UPLOAD_FOLDER'], attachment.filename)
-            attachment.save(attachment_path)
-            attachment_paths.append(attachment_path)
-
-    # Save expense data and attachment paths to database or process further as needed
-
-    return jsonify({'message': 'Expense submitted successfully'})
-
-#Budget Creator
-@app.route('/budget')
+# Budget Management
+@app.route('/budget', methods=['GET', 'POST'])
 def budget():
     current_user = get_current_user()
-    if current_user:
-        return render_template('budget.html')
-    return redirect(url_for('login'))
+    if not current_user:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        if 'category' in request.form:
+            category = request.form['category']
+            budget_amount = float(request.form['budget_amount'])
+            c.execute("INSERT INTO budgets (username, category, budget_amount) VALUES (?, ?, ?)", 
+                      (current_user, category, budget_amount))
+            conn.commit()
+            flash('Budget added successfully', 'success')
+        elif 'goal_name' in request.form:
+            goal_name = request.form['goal_name']
+            target_amount = float(request.form['target_amount'])
+            c.execute("INSERT INTO saving_goals (username, goal_name, target_amount) VALUES (?, ?, ?)", 
+                      (current_user, goal_name, target_amount))
+            conn.commit()
+            flash('Saving goal added successfully', 'success')
+
+    c.execute("SELECT category, budget_amount FROM budgets WHERE username=?", (current_user,))
+    budgets = c.fetchall()
+    c.execute("SELECT id, goal_name, target_amount, saved_amount FROM saving_goals WHERE username=?", (current_user,))
+    goals = c.fetchall()
+    return render_template('budget.html', budgets=budgets, goals=goals)
+
+@app.route('/allocate_to_goal', methods=['POST'])
+def allocate_to_goal():
+    current_user = get_current_user()
+    if not current_user:
+        return redirect(url_for('login'))
+
+    goal_id = int(request.form['goal_id'])
+    amount = float(request.form['amount'])
+
+    c.execute("UPDATE saving_goals SET saved_amount = saved_amount + ? WHERE id=? AND username=?", 
+              (amount, goal_id, current_user))
+    conn.commit()
+    flash('Changes saved successfully', 'success')
+
+    return redirect(url_for('budget'))
+
 
 #Debt Pages
 @app.route('/debt', methods=['GET', 'POST'])

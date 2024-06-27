@@ -1,6 +1,64 @@
 {% extends "base.html" %}
-{% block title %}Title{% endblock %}
+{% block title %}Budget and Saving Goals Management{% endblock %}
 {% block content %}
-<h2>Title (To be implemented)</h2>
-<p>This feature is to be implemented.</p>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h2>Manage Budgets and Saving Goals</h2>
+        
+        <!-- Budget Form -->
+        <h3>Set Budgets</h3>
+        <form method="post">
+            <div class="form-group">
+                <label for="category">Category:</label>
+                <select class="form-control" id="category" name="category">
+                    <option value="Food">Food</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Housing">Housing</option>
+                    <!-- Add more categories as needed -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="budget_amount">Budget Amount:</label>
+                <input type="text" class="form-control" id="budget_amount" name="budget_amount">
+            </div>
+            <button type="submit" class="btn btn-primary">Set Budget</button>
+        </form>
+        
+        <h3 style="margin-top: 20px;">Current Budgets</h3>
+        <div class="budget-list">
+            {% for budget in budgets %}
+            <div>{{ budget.category }}: ${{ budget.budget_amount }}</div>
+            {% endfor %}
+        </div>
+
+        <!-- Saving Goals Form -->
+        <h3 style="margin-top: 20px;">Create Saving Goals</h3>
+        <form method="post">
+            <div class="form-group">
+                <label for="goal_name">Goal Name:</label>
+                <input type="text" class="form-control" id="goal_name" name="goal_name">
+            </div>
+            <div class="form-group">
+                <label for="target_amount">Target Amount:</label>
+                <input type="text" class="form-control" id="target_amount" name="target_amount">
+            </div>
+            <button type="submit" class="btn btn-primary">Create Goal</button>
+        </form>
+        
+        <h3 style="margin-top: 20px;">Current Saving Goals</h3>
+        <div class="goal-list">
+            {% for goal in goals %}
+            <div>{{ goal.goal_name }}: Target ${{ goal.target_amount }}, Saved ${{ goal.saved_amount }}</div>
+            <form method="post" action="{{ url_for('allocate_to_goal') }}">
+                <input type="hidden" name="goal_id" value="{{ goal.id }}">
+                <div class="form-group">
+                    <label for="amount">Allocate Amount:</label>
+                    <input type="text" class="form-control" id="amount" name="amount">
+                </div>
+                <button type="submit" class="btn btn-primary">Allocate</button>
+            </form>
+            {% endfor %}
+        </div>
+    </div>
+</div>
 {% endblock %}

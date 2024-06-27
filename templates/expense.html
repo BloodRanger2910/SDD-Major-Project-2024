@@ -15,16 +15,12 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="expense">Expense Description:</label>
-                <input type="text" class="form-control" id="expense" name="expense">
+                <label for="expense_name">Expense Name:</label>
+                <input type="text" class="form-control" id="expense_name" name="expense_name">
             </div>
             <div class="form-group">
                 <label for="amount">Amount:</label>
                 <input type="text" class="form-control" id="amount" name="amount">
-            </div>
-            <div class="form-group">
-                <label for="currency">Currency:</label>
-                <input type="text" class="form-control" id="currency" name="currency" placeholder="AUD">
             </div>
             <div class="form-group">
                 <label for="payment_method">Payment Method:</label>
@@ -44,23 +40,49 @@
                 <input type="text" class="form-control" id="tags" name="tags">
             </div>
             <div class="form-group">
-                <label for="recurrence">Recurring Expense:</label>
-                <input type="checkbox" id="recurrence" name="recurrence"> Yes
-            </div>
-            <div class="form-group">
                 <label for="attachments">Attachments:</label>
                 <input type="file" class="form-control-file" id="attachments" name="attachments" multiple>
             </div>
             <button type="submit" class="btn btn-primary">Submit Expense</button>
         </form>
-        <h3>Expenses</h3>
+        <h3 style="margin-top: 20px;">Recent Expenses</h3>
         <div class="expense-list">
             {% for expense in expenses %}
-            <div>{{ expense.date }} | {{ expense.category }}: {{ expense.expense }} - ${{ expense.amount }}</div>
+            <div>{{ expense[3] }} | {{ expense[0] }}: {{ expense[1] }} - ${{ expense[2] }}</div>
             {% endfor %}
         </div>
         <h3>Expense Analytics</h3>
         <canvas id="expenseChart"></canvas>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var ctx = document.getElementById('expenseChart').getContext('2d');
+        var expenseData = {
+            labels: [{% for expense in expenses %}'{{ expense[0] }}',{% endfor %}],
+            datasets: [{
+                label: 'Expenses',
+                data: [{% for expense in expenses %}{{ expense[2] }},{% endfor %}],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        };
+        var expenseChart = new Chart(ctx, {
+            type: 'bar',
+            data: expenseData,
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}
