@@ -105,3 +105,8 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         });
 });
+
+// Placeholder for potential future enhancements
+document.addEventListener("DOMContentLoaded", function () {
+    // JavaScript code for income tracking
+});

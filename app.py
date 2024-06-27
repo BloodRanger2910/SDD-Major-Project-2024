@@ -7,15 +7,46 @@ import threading
 import os
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # Replace with your own secret key
+app.secret_key = 'your_secret_key'
 
 # Database setup
 conn = sqlite3.connect('finance_manager.db', check_same_thread=False)
 c = conn.cursor()
-c.execute('''CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password_hash TEXT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS expenses (id INTEGER PRIMARY KEY, username TEXT, category TEXT, expense TEXT, amount REAL, date TEXT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS budgets (id INTEGER PRIMARY KEY, username TEXT, category TEXT, amount REAL, date TEXT)''')
-c.execute('''CREATE TABLE IF NOT EXISTS debts (id INTEGER PRIMARY KEY, username TEXT, name TEXT, initial_amount REAL, remaining_amount REAL)''')
+c.execute('''CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY,
+                username TEXT UNIQUE,
+                password_hash TEXT
+            )''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS expenses (
+                id INTEGER PRIMARY KEY,
+                username TEXT,
+                category TEXT,
+                expense TEXT,
+                amount REAL,
+                currency TEXT,
+                payment_method TEXT,
+                date TEXT,
+                tags TEXT,
+                recurrence BOOLEAN,
+                attachments BLOB
+            )''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS debts (
+                id INTEGER PRIMARY KEY,
+                username TEXT,
+                name TEXT,
+                initial_amount REAL,
+                remaining_amount REAL
+            )''')
+
+c.execute('''CREATE TABLE IF NOT EXISTS incomes (
+                id INTEGER PRIMARY KEY,
+                username TEXT,
+                source TEXT,
+                amount REAL,
+                date TEXT
+            )''')
 conn.commit()
 
 def get_current_user():
@@ -91,6 +122,47 @@ def overview():
         return render_template('overview.html')
     return redirect(url_for('login'))
 
+@app.route('/income', methods=['GET', 'POST'])
+def income():
+    current_user = get_current_user()
+    if not current_user:
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        source = request.form['source']
+        amount = request.form['amount']
+        date = request.form['date']
+
+        if source and amount and date:
+            c.execute("INSERT INTO incomes (username, source, amount, date) VALUES (?, ?, ?, ?)", 
+                      (current_user, source, float(amount), date))
+            conn.commit()
+            flash('Income added successfully', 'success')
+        else:
+            flash('Please enter all details', 'error')
+
+    c.execute("SELECT source, amount, date FROM incomes WHERE username=? ORDER BY date DESC LIMIT 10", (current_user,))
+    incomes = c.fetchall()
+    return render_template('income.html', incomes=incomes, current_date=datetime.now().strftime('%Y-%m-%d'))
+
+@app.route('/submit_income', methods=['POST'])
+def submit_income():
+    current_user = get_current_user()
+    if not current_user:
+        return redirect(url_for('login'))
+
+    source = request.form['source']
+    amount = request.form['amount']
+    date = request.form['date']
+
+    if source and amount and date:
+        c.execute("INSERT INTO incomes (username, source, amount, date) VALUES (?, ?, ?, ?)", 
+                  (current_user, source, float(amount), date))
+        conn.commit()
+        return jsonify({'message': 'Income submitted successfully'})
+    else:
+        return jsonify({'message': 'Please enter all details'}), 400
+
 @app.route('/expense', methods=['GET', 'POST'])
 def expense():
     current_user = get_current_user()
@@ -146,6 +218,7 @@ def budget():
         return render_template('budget.html')
     return redirect(url_for('login'))
 
+#Debt Pages
 @app.route('/debt', methods=['GET', 'POST'])
 def debt():
     current_user = get_current_user()
@@ -204,39 +277,6 @@ def update_debt(debt_id):
 
     return redirect(url_for('debt'))
 
-@app.route('/debt_summary')
-def debt_summary():
-    current_user = get_current_user()
-    if not current_user:
-        return redirect(url_for('login'))
-
-    c.execute("SELECT name, initial_amount, remaining_amount FROM debts WHERE username=?", (current_user,))
-    debts = c.fetchall()
-    # Convert fetched debts to dictionaries
-    debts = [{'name': debt[0], 'initial_amount': debt[1], 'remaining_amount': debt[2]} for debt in debts]
-    return jsonify(debts)
-
-@app.route('/reporting')
-def reporting():
-    current_user = get_current_user()
-    if current_user:
-        return render_template('reporting.html')
-    return redirect(url_for('login'))
-
-@app.route('/income')
-def income():
-    current_user = get_current_user()
-    if current_user:
-        return render_template('income.html')
-    return redirect(url_for('login'))
-
-@app.route('/help')
-def help():
-    current_user = get_current_user()
-    if current_user:
-        return render_template('help.html')
-    return redirect(url_for('login'))
-
 @app.route('/delete_debt/<int:debt_id>', methods=['POST'])
 def delete_debt(debt_id):
     current_user = get_current_user()
@@ -257,7 +297,33 @@ def delete_debt(debt_id):
     flash('Debt deleted successfully', 'success')
     return redirect(url_for('debt'))
 
+@app.route('/debt_summary')
+def debt_summary():
+    current_user = get_current_user()
+    if not current_user:
+        return redirect(url_for('login'))
 
+    c.execute("SELECT name, initial_amount, remaining_amount FROM debts WHERE username=?", (current_user,))
+    debts = c.fetchall()
+    # Convert fetched debts to dictionaries
+    debts = [{'name': debt[0], 'initial_amount': debt[1], 'remaining_amount': debt[2]} for debt in debts]
+    return jsonify(debts)
+
+#Reporting Page
+@app.route('/reporting')
+def reporting():
+    current_user = get_current_user()
+    if current_user:
+        return render_template('reporting.html')
+    return redirect(url_for('login'))
+
+#Help Page
+@app.route('/help')
+def help():
+    current_user = get_current_user()
+    if current_user:
+        return render_template('help.html')
+    return redirect(url_for('login'))
 
 def open_browser():
     webbrowser.open_new('http://127.0.0.1:5000/')

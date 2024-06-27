@@ -17,11 +17,11 @@
         <a class="navbar-brand" href="{{ url_for('main') }}">Finance Manager</a>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('income') }}">Income Tracking</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('expense') }}">Expense Tracking</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('budget') }}">Budget Creator</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('debt') }}">Debt Management</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('reporting') }}">Financial Reporting</a></li>
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('income') }}">Income Tracking</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('help') }}">Help</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
             </ul>
