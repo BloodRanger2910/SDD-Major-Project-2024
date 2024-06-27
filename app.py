@@ -58,6 +58,7 @@ def index():
         return redirect(url_for('main'))
     return render_template('login.html')
 
+#Login/Register Pages
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -103,25 +104,27 @@ def register():
             return redirect(url_for('login'))
     return render_template('register.html')
 
-@app.route('/main')
-def main():
-    current_user = get_current_user()
-    if current_user:
-        return render_template('main.html', username=current_user)
-    return redirect(url_for('login'))
-
 @app.route('/logout')
 def logout():
     session.pop('username', None)
     return redirect(url_for('login'))
 
-@app.route('/overview')
-def overview():
+#Home Page
+@app.route('/main')
+def main():
     current_user = get_current_user()
     if current_user:
-        return render_template('overview.html')
+        c.execute("SELECT SUM(amount) FROM incomes WHERE username=?", (current_user,))
+        total_income = c.fetchone()[0] or 0
+
+        c.execute("SELECT SUM(amount) FROM expenses WHERE username=?", (current_user,))
+        total_expense = c.fetchone()[0] or 0
+
+        balance = total_income - total_expense
+        return render_template('main.html', username=current_user, balance=balance)
     return redirect(url_for('login'))
 
+#Income Tracking
 @app.route('/income', methods=['GET', 'POST'])
 def income():
     current_user = get_current_user()
@@ -163,6 +166,7 @@ def submit_income():
     else:
         return jsonify({'message': 'Please enter all details'}), 400
 
+#Expense Tracking
 @app.route('/expense', methods=['GET', 'POST'])
 def expense():
     current_user = get_current_user()
@@ -211,6 +215,7 @@ def submit_expense():
 
     return jsonify({'message': 'Expense submitted successfully'})
 
+#Budget Creator
 @app.route('/budget')
 def budget():
     current_user = get_current_user()
@@ -309,7 +314,7 @@ def debt_summary():
     debts = [{'name': debt[0], 'initial_amount': debt[1], 'remaining_amount': debt[2]} for debt in debts]
     return jsonify(debts)
 
-#Reporting Page
+#Finanacial Reporting Page
 @app.route('/reporting')
 def reporting():
     current_user = get_current_user()

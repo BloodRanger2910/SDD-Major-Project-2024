@@ -19,7 +19,7 @@
         <div class="debt-list">
             {% for debt in debts %}
             <div class="debt-item">
-                <h4>{{ debt.name }} - ${{ debt.remaining_amount }} remaining</h4>
+                <h4 style="margin-top: 20px;">{{ debt.name }} - ${{ debt.remaining_amount }} remaining</h4>
                 <form method="post" action="{{ url_for('update_debt', debt_id=debt.id) }}">
                     <div class="form-group">
                         <label for="amount">Amount:</label>
@@ -34,7 +34,7 @@
             </div>
             {% endfor %}
         </div>
-        <h3>Debt Summary</h3>
+        <h3 style="margin-top: 20px;">Debt Summary</h3>
         <canvas id="debtChart"></canvas>
     </div>
 </div>
