@@ -360,9 +360,59 @@ def debt_summary():
 @app.route('/reporting')
 def reporting():
     current_user = get_current_user()
-    if current_user:
-        return render_template('reporting.html')
-    return redirect(url_for('login'))
+    if not current_user:
+        return redirect(url_for('login'))
+
+    # Expense report data
+    c.execute("SELECT category, amount, date FROM expenses WHERE username=? ORDER BY date DESC", (current_user,))
+    expenses = c.fetchall()
+    c.execute("""
+        SELECT strftime('%Y-%m', date) as month, SUM(amount) as total
+        FROM expenses
+        WHERE username=?
+        GROUP BY month
+        ORDER BY month DESC
+    """, (current_user,))
+    monthly_expense_summary = c.fetchall()
+
+    # Income report data
+    c.execute("SELECT source, amount, date FROM incomes WHERE username=? ORDER BY date DESC", (current_user,))
+    incomes = c.fetchall()
+    c.execute("""
+        SELECT strftime('%Y-%m', date) as month, SUM(amount) as total
+        FROM incomes
+        WHERE username=?
+        GROUP BY month
+        ORDER BY month DESC
+    """, (current_user,))
+    monthly_income_summary = c.fetchall()
+
+    # Budget report data
+    c.execute("SELECT category, budget_amount FROM budgets WHERE username=?", (current_user,))
+    budgets = c.fetchall()
+    c.execute("""
+        SELECT category, SUM(amount) as total_spent
+        FROM expenses
+        WHERE username=?
+        GROUP BY category
+    """, (current_user,))
+    expenses_per_category = c.fetchall()
+
+    # Financial statement data
+    c.execute("SELECT SUM(amount) FROM incomes WHERE username=?", (current_user,))
+    total_income = c.fetchone()[0] or 0
+    c.execute("SELECT SUM(amount) FROM expenses WHERE username=?", (current_user,))
+    total_expenses = c.fetchone()[0] or 0
+    balance = total_income - total_expenses
+
+    # Debt report data
+    c.execute("SELECT name, initial_amount, remaining_amount FROM debts WHERE username=?", (current_user,))
+    debts = c.fetchall()
+
+    return render_template('reporting.html', expenses=expenses, monthly_expense_summary=monthly_expense_summary,
+                           incomes=incomes, monthly_income_summary=monthly_income_summary, budgets=budgets,
+                           expenses_per_category=expenses_per_category, total_income=total_income,
+                           total_expenses=total_expenses, balance=balance, debts=debts)
 
 #Help Page
 @app.route('/help')

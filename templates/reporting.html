@@ -1,6 +1,193 @@
-{% extends "base.html" %}
-{% block title %}Title{% endblock %}
-{% block content %}
-<h2>Title (To be implemented)</h2>
-<p>This feature is to be implemented.</p>
-{% endblock %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Financial Reporting</title>
+    <style>
+        /* Basic styling for tabs and content */
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #ccc;
+        }
+        .tabcontent {
+            display: none;
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-top: none;
+        }
+        .back-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        .back-button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Financial Reporting</h1>
+
+<a href="{{ url_for('main') }}" class="back-button">Back to Dashboard</a>
+
+<div class="tab">
+  <button class="tablinks" onclick="openReport(event, 'Expenses')" id="defaultOpen">Expenses</button>
+  <button class="tablinks" onclick="openReport(event, 'Income')">Income</button>
+  <button class="tablinks" onclick="openReport(event, 'Budget')">Budget</button>
+  <button class="tablinks" onclick="openReport(event, 'FinancialStatement')">Financial Statement</button>
+  <button class="tablinks" onclick="openReport(event, 'Debts')">Debts</button>
+</div>
+
+<div id="Expenses" class="tabcontent">
+  <h2>Expenses</h2>
+  <h3>Monthly Summary</h3>
+  <ul>
+      {% for month, total in monthly_expense_summary %}
+          <li>{{ month }}: ${{ total }}</li>
+      {% endfor %}
+  </ul>
+  <h3>All Expenses</h3>
+  <table>
+      <tr>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Date</th>
+      </tr>
+      {% for category, amount, date in expenses %}
+          <tr>
+              <td>{{ category }}</td>
+              <td>{{ amount }}</td>
+              <td>{{ date }}</td>
+          </tr>
+      {% endfor %}
+  </table>
+</div>
+
+<div id="Income" class="tabcontent">
+  <h2>Income</h2>
+  <h3>Monthly Summary</h3>
+  <ul>
+      {% for month, total in monthly_income_summary %}
+          <li>{{ month }}: ${{ total }}</li>
+      {% endfor %}
+  </ul>
+  <h3>All Incomes</h3>
+  <table>
+      <tr>
+          <th>Source</th>
+          <th>Amount</th>
+          <th>Date</th>
+      </tr>
+      {% for source, amount, date in incomes %}
+          <tr>
+              <td>{{ source }}</td>
+              <td>{{ amount }}</td>
+              <td>{{ date }}</td>
+          </tr>
+      {% endfor %}
+  </table>
+</div>
+
+<div id="Budget" class="tabcontent">
+  <h2>Budget</h2>
+  <h3>Budget vs Actual</h3>
+  <table>
+      <tr>
+          <th>Category</th>
+          <th>Budget Amount</th>
+          <th>Actual Spent</th>
+      </tr>
+      {% for category, budget_amount in budgets %}
+          <tr>
+              <td>{{ category }}</td>
+              <td>{{ budget_amount }}</td>
+              <td>
+                  {% for exp_category, total_spent in expenses_per_category %}
+                      {% if exp_category == category %}
+                          {{ total_spent }}
+                      {% endif %}
+                  {% endfor %}
+              </td>
+          </tr>
+      {% endfor %}
+  </table>
+</div>
+
+<div id="FinancialStatement" class="tabcontent">
+  <h2>Financial Statement</h2>
+  <table>
+      <tr>
+          <th>Total Income</th>
+          <td>${{ total_income }}</td>
+      </tr>
+      <tr>
+          <th>Total Expenses</th>
+          <td>${{ total_expenses }}</td>
+      </tr>
+      <tr>
+          <th>Balance</th>
+          <td>${{ balance }}</td>
+      </tr>
+  </table>
+</div>
+
+<div id="Debts" class="tabcontent">
+  <h2>Debt Report</h2>
+  <table>
+      <tr>
+          <th>Name</th>
+          <th>Initial Amount</th>
+          <th>Remaining Amount</th>
+      </tr>
+      {% for name, initial_amount, remaining_amount in debts %}
+          <tr>
+              <td>{{ name }}</td>
+              <td>${{ initial_amount }}</td>
+              <td>${{ remaining_amount }}</td>
+          </tr>
+      {% endfor %}
+  </table>
+</div>
+
+<script>
+function openReport(evt, reportName) {
+  var i, tabcontent, tablinks;
+  tabcontent = document.getElementsByClassName("tabcontent");
+  for (i = 0; i < tabcontent.length; i++) {
+      tabcontent[i].style.display = "none";
+  }
+  tablinks = document.getElementsByClassName("tablinks");
+  for (i = 0; i < tablinks.length; i++) {
+      tablinks[i].className = tablinks[i].className.replace(" active", "");
+  }
+  document.getElementById(reportName).style.display = "block";
+  evt.currentTarget.className += " active";
+}
+
+// Get the element with id="defaultOpen" and click on it to open the default tab
+document.getElementById("defaultOpen").click();
+</script>
+
+</body>
+</html>
