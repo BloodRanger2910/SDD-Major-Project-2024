@@ -5,11 +5,23 @@ from datetime import datetime
 import webbrowser
 import threading
 import os
+from pathlib import Path
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/static')
 app.secret_key = 'your_secret_key'
-app.config['UPLOAD_FOLDER'] = 'uploads' 
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
+# Determine common application data folder based on platform
+if os.name == 'nt':  # Windows
+    common_data_folder = os.getenv('ALLUSERSPROFILE')
+elif os.name == 'posix':  # Linux, MacOS, etc.
+    common_data_folder = '/var/lib'  # Adjust for specific Unix-like systems if needed
+
+# Ensure the folder exists, create if necessary
+database_folder = os.path.join(common_data_folder, 'Maahir Ahmed', 'Financial Manager Application')
+Path(database_folder).mkdir(parents=True, exist_ok=True)
+
+database_path = os.path.join(database_folder, 'finance_manager.db')
 # Database setup
 conn = sqlite3.connect('finance_manager.db', check_same_thread=False)
 c = conn.cursor()
@@ -90,7 +102,7 @@ def login():
         result = c.fetchone()
         if result and bcrypt.checkpw(password, result[0]):
             session['username'] = username
-            return redirect(url_for('main'))
+            return redirect(url_for('disclaimer'))
         else:
             flash('Invalid username or password', 'error')
     return render_template('login.html')
@@ -131,15 +143,56 @@ def logout():
 def main():
     current_user = get_current_user()
     if current_user:
-        c.execute("SELECT SUM(amount) FROM incomes WHERE username=?", (current_user,))
-        total_income = c.fetchone()[0] or 0
+        total_income = get_total_income(current_user)
+        total_expenses = get_total_expenses(current_user)
+        balance = total_income - total_expenses
 
-        c.execute("SELECT SUM(amount) FROM expenses WHERE username=?", (current_user,))
-        total_expense = c.fetchone()[0] or 0
+        recent_transactions = get_recent_income(current_user)
+        budget_overview = get_budget_overview(current_user)
+        
+        net_savings = total_income - total_expenses
 
-        balance = total_income - total_expense
-        return render_template('main.html', username=current_user, balance=balance)
+        return render_template(
+            'main.html',
+            username=current_user,
+            balance=balance,
+            recent_transactions=recent_transactions,
+            budget_overview=budget_overview,
+            total_income=total_income,
+            total_expenses=total_expenses,
+            net_savings=net_savings
+        )
     return redirect(url_for('login'))
+
+def get_total_expenses(username):
+    c.execute("SELECT SUM(amount) FROM expenses WHERE username=?", (username,))
+    return c.fetchone()[0] or 0
+
+def get_total_income(username):
+    c.execute("SELECT SUM(amount) FROM incomes WHERE username=?", (username,))
+    return c.fetchone()[0] or 0
+
+def get_budget_overview(username):
+    c.execute("""
+        SELECT b.category, IFNULL(SUM(e.amount), 0) AS spent, b.budget_amount
+        FROM budgets b
+        LEFT JOIN expenses e ON b.username = e.username AND b.category = e.category
+        WHERE b.username=?
+        GROUP BY b.category, b.budget_amount
+    """, (username,))
+    return c.fetchall()
+
+def get_recent_income(username):
+    c.execute("""
+        SELECT date, description, amount 
+        FROM (
+            SELECT date, source AS description, amount FROM incomes WHERE username=?
+            UNION ALL
+            SELECT date, expense_name AS description, amount FROM expenses WHERE username=?
+        )
+        ORDER BY date DESC LIMIT 5
+    """, (username, username))
+    return c.fetchall()
 
 #Income Tracking
 @app.route('/income', methods=['GET', 'POST'])
@@ -147,41 +200,28 @@ def income():
     current_user = get_current_user()
     if not current_user:
         return redirect(url_for('login'))
-
+    
     if request.method == 'POST':
         source = request.form['source']
         amount = request.form['amount']
         date = request.form['date']
 
-        if source and amount and date:
+        # Convert date to 'dd-mm-yyyy' format for storage in the database
+        formatted_date = datetime.strptime(date, '%Y-%m-%d').strftime('%d-%m-%Y')
+
+        if source and amount and formatted_date:
             c.execute("INSERT INTO incomes (username, source, amount, date) VALUES (?, ?, ?, ?)", 
-                      (current_user, source, float(amount), date))
+                      (current_user, source, float(amount), formatted_date))
             conn.commit()
             flash('Income added successfully', 'success')
         else:
             flash('Please enter all details', 'error')
 
-    c.execute("SELECT source, amount, date FROM incomes WHERE username=? ORDER BY date DESC LIMIT 10", (current_user,))
+    # Fetch incomes and sort by date in ascending order
+    c.execute("SELECT source, amount, date FROM incomes WHERE username=? ORDER BY date DESC", (current_user,))
     incomes = c.fetchall()
-    return render_template('income.html', incomes=incomes, current_date=datetime.now().strftime('%Y-%m-%d'))
+    return render_template('income.html', incomes=incomes, current_date=datetime.now().strftime('%d-%m-%Y'))
 
-@app.route('/submit_income', methods=['POST'])
-def submit_income():
-    current_user = get_current_user()
-    if not current_user:
-        return redirect(url_for('login'))
-
-    source = request.form['source']
-    amount = request.form['amount']
-    date = request.form['date']
-
-    if source and amount and date:
-        c.execute("INSERT INTO incomes (username, source, amount, date) VALUES (?, ?, ?, ?)", 
-                  (current_user, source, float(amount), date))
-        conn.commit()
-        return jsonify({'message': 'Income submitted successfully'})
-    else:
-        return jsonify({'message': 'Please enter all details'}), 400
 
 #Expense Tracking
 @app.route('/expense', methods=['GET', 'POST'])
@@ -196,7 +236,6 @@ def expense():
         amount = float(request.form['amount'])
         payment_method = request.form['payment_method']
         date = request.form['date']
-        tags = request.form['tags']
         attachments = request.files.getlist('attachments')
         
         # Handle file uploads
@@ -208,8 +247,8 @@ def expense():
                 attachment_paths.append(attachment_path)
 
         if category and expense_name and amount and date:
-            c.execute("INSERT INTO expenses (username, category, expense_name, amount, payment_method, date, tags, attachments) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                      (current_user, category, expense_name, amount, payment_method, date, tags, None))
+            c.execute("INSERT INTO expenses (username, category, expense_name, amount, payment_method, date, attachments) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                      (current_user, category, expense_name, amount, payment_method, date, None))
             conn.commit()
             flash('Expense added successfully', 'success')
         else:
@@ -230,39 +269,27 @@ def budget():
         if 'category' in request.form:
             category = request.form['category']
             budget_amount = float(request.form['budget_amount'])
-            c.execute("INSERT INTO budgets (username, category, budget_amount) VALUES (?, ?, ?)", 
-                      (current_user, category, budget_amount))
-            conn.commit()
-            flash('Budget added successfully', 'success')
-        elif 'goal_name' in request.form:
-            goal_name = request.form['goal_name']
-            target_amount = float(request.form['target_amount'])
-            c.execute("INSERT INTO saving_goals (username, goal_name, target_amount) VALUES (?, ?, ?)", 
-                      (current_user, goal_name, target_amount))
-            conn.commit()
-            flash('Saving goal added successfully', 'success')
+            
+            # Check if budget already exists for this category
+            c.execute("SELECT id FROM budgets WHERE username=? AND category=?", (current_user, category))
+            existing_budget = c.fetchone()
 
+            if existing_budget:
+                # Update existing budget
+                c.execute("UPDATE budgets SET budget_amount=? WHERE id=?", (budget_amount, existing_budget[0]))
+                conn.commit()
+                flash('Budget updated successfully', 'success')
+            else:
+                # Insert new budget
+                c.execute("INSERT INTO budgets (username, category, budget_amount) VALUES (?, ?, ?)", 
+                          (current_user, category, budget_amount))
+                conn.commit()
+                flash('Budget added successfully', 'success')
+
+    # Fetch all budgets for the current user
     c.execute("SELECT category, budget_amount FROM budgets WHERE username=?", (current_user,))
     budgets = c.fetchall()
-    c.execute("SELECT id, goal_name, target_amount, saved_amount FROM saving_goals WHERE username=?", (current_user,))
-    goals = c.fetchall()
-    return render_template('budget.html', budgets=budgets, goals=goals)
-
-@app.route('/allocate_to_goal', methods=['POST'])
-def allocate_to_goal():
-    current_user = get_current_user()
-    if not current_user:
-        return redirect(url_for('login'))
-
-    goal_id = int(request.form['goal_id'])
-    amount = float(request.form['amount'])
-
-    c.execute("UPDATE saving_goals SET saved_amount = saved_amount + ? WHERE id=? AND username=?", 
-              (amount, goal_id, current_user))
-    conn.commit()
-    flash('Changes saved successfully', 'success')
-
-    return redirect(url_for('budget'))
+    return render_template('budget.html', budgets=budgets)
 
 
 #Debt Pages
@@ -414,6 +441,15 @@ def reporting():
                            expenses_per_category=expenses_per_category, total_income=total_income,
                            total_expenses=total_expenses, balance=balance, debts=debts)
 
+#Disclaimer
+@app.route('/disclaimer')
+def disclaimer():
+    current_user = get_current_user()
+    if current_user:
+        return render_template("disclaimer.html")
+    if not current_user:
+        return redirect(url_for('login'))
+    
 #Help Page
 @app.route('/help')
 def help():

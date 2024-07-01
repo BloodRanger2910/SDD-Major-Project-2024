@@ -1,7 +1,69 @@
 {% extends "base.html" %}
 {% block title %}Main Page{% endblock %}
 {% block content %}
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 18px;
+        text-align: left;
+    }
+    table th, table td {
+        padding: 12px;
+        border-bottom: 1px solid #ddd;
+    }
+    table th {
+        background-color: #f2f2f2;
+    }
+    table tr:nth-child(even) {
+        background-color: #f9f9f9;
+    }
+    table tr:hover {
+        background-color: #f1f1f1;
+    }
+    h2, h3 {
+        margin-top: 20px;
+    }
+</style>
+
 <h2>Welcome, {{ username }}!</h2>
-<p>This is the main page of the application.</p>
 <h3>Your Balance: ${{ balance }}</h3>
+
+<h3>Recent Expenses</h3>
+<table>
+    <tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Amount</th>
+    </tr>
+    {% for transaction in recent_transactions %}
+    <tr>
+        <td>{{ transaction[0] }}</td>
+        <td>{{ transaction[1] }}</td>
+        <td>${{ transaction[2] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h3>Budget Overview</h3>
+<table>
+    <tr>
+        <th>Category</th>
+        <th>Spent</th>
+        <th>Budget</th>
+    </tr>
+    {% for budget in budget_overview %}
+    <tr>
+        <td>{{ budget[0] }}</td>
+        <td>${{ budget[1] }}</td>
+        <td>${{ budget[2] }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h3>Financial Summary</h3>
+<p>Total Income: ${{ total_income }}</p>
+<p>Total Expenses: ${{ total_expenses }}</p>
+<p>Net Savings: ${{ net_savings }}</p>
 {% endblock %}

@@ -1,55 +1,48 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Financial Reporting</title>
-    <style>
-        /* Basic styling for tabs and content */
-        .tab {
-            overflow: hidden;
-            border: 1px solid #ccc;
-            background-color: #f1f1f1;
-        }
-        .tab button {
-            background-color: inherit;
-            float: left;
-            border: none;
-            outline: none;
-            cursor: pointer;
-            padding: 14px 16px;
-            transition: 0.3s;
-        }
-        .tab button:hover {
-            background-color: #ddd;
-        }
-        .tab button.active {
-            background-color: #ccc;
-        }
-        .tabcontent {
-            display: none;
-            padding: 6px 12px;
-            border: 1px solid #ccc;
-            border-top: none;
-        }
-        .back-button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            text-align: center;
-            text-decoration: none;
-            display: inline-block;
-            margin: 10px 0;
-            cursor: pointer;
-        }
-        .back-button:hover {
-            background-color: #45a049;
-        }
-    </style>
-</head>
-<body>
-
-<h1>Financial Reporting</h1>
-
-<a href="{{ url_for('main') }}" class="back-button">Back to Dashboard</a>
+{% extends "base.html" %}
+{% block title %}Financial Reporting{% endblock %}
+{% block content %}
+<style>
+    /* Basic styling for tabs and content */
+    .tab {
+        overflow: hidden;
+        border: 1px solid #ccc;
+        background-color: #f1f1f1;
+    }
+    .tab button {
+        background-color: inherit;
+        float: left;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 14px 16px;
+        transition: 0.3s;
+    }
+    .tab button:hover {
+        background-color: #ddd;
+    }
+    .tab button.active {
+        background-color: #ccc;
+    }
+    .tabcontent {
+        display: none;
+        padding: 6px 12px;
+        border: 1px solid #ccc;
+        border-top: none;
+    }
+    .back-button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        margin: 10px 0;
+        cursor: pointer;
+    }
+    .back-button:hover {
+        background-color: #45a049;
+    }
+</style>
 
 <div class="tab">
   <button class="tablinks" onclick="openReport(event, 'Expenses')" id="defaultOpen">Expenses</button>
@@ -61,7 +54,7 @@
 
 <div id="Expenses" class="tabcontent">
   <h2>Expenses</h2>
-  <h3>Monthly Summary</h3>
+  <h3>Summary</h3>
   <ul>
       {% for month, total in monthly_expense_summary %}
           <li>{{ month }}: ${{ total }}</li>
@@ -86,7 +79,7 @@
 
 <div id="Income" class="tabcontent">
   <h2>Income</h2>
-  <h3>Monthly Summary</h3>
+  <h3>Summary</h3>
   <ul>
       {% for month, total in monthly_income_summary %}
           <li>{{ month }}: ${{ total }}</li>
@@ -189,5 +182,4 @@ function openReport(evt, reportName) {
 document.getElementById("defaultOpen").click();
 </script>
 
-</body>
-</html>
+{% endblock %}

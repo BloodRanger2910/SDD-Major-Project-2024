@@ -3,14 +3,18 @@
 {% block content %}
 <div class="container">
     <h2>Expense Tracking</h2>
-    <form id="expenseForm" method="post" enctype="multipart/form-data">
+    <form id="expenseForm" method="post" enctype="multipart/form-data" action="{{ url_for('expense') }}">
         <div class="form-group">
             <label for="category">Category:</label>
             <select class="form-control" id="category" name="category">
                 <option value="Food">Food</option>
                 <option value="Transport">Transport</option>
                 <option value="Housing">Housing</option>
-                <option value="Recreation">Recreation</option>
+                <option value="Health">Health</option>
+                <option value="Entertainment">Entertainment</option>
+                <option value="Personal Care">Personal Care</option>
+                <option value="Education">Education</option>
+                <option value="Utilities">Utilities</option>
                 <!-- Add more categories as needed -->
             </select>
         </div>
@@ -36,11 +40,7 @@
             <input type="date" class="form-control" id="date" name="date" required>
         </div>
         <div class="form-group">
-            <label for="tags">Tags (comma-separated):</label>
-            <input type="text" class="form-control" id="tags" name="tags">
-        </div>
-        <div class="form-group">
-            <label for="attachments">Attachments:</label>
+            <label for="attachments">Attachments: (only PDF and IMAGES, such as invoices and recipets)</label>
             <input type="file" class="form-control-file" id="attachments" name="attachments" multiple>
         </div>
         <button type="submit" class="btn btn-primary">Submit Expense</button>
@@ -48,40 +48,16 @@
     <h3>Recent Expenses</h3>
     <ul>
         {% for expense in expenses %}
-        <li>{{ expense[3] }} | {{ expense[0] }}: {{ expense[1] }} - ${{ expense[2] }}</li>
+        <li>{{ expense[3] }} | {{ expense[0] }}: {{ expense[1] }} - ${{ expense[2] }}
+            {% if expense[4] %}
+                <ul>
+                    {% for attachment in expense[4] %}
+                        <li><a href="{{ url_for('download_attachment', filename=attachment.filename) }}" target="_blank">{{ attachment.filename }}</a></li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </li>
         {% endfor %}
     </ul>
-    <h3>Expense Analytics</h3>
-    <canvas id="expenseChart"></canvas>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var ctx = document.getElementById('expenseChart').getContext('2d');
-        var expenseData = {
-            labels: [{% for expense in expenses %}'{{ expense[0] }}',{% endfor %}],
-            datasets: [{
-                label: 'Expenses',
-                data: [{% for expense in expenses %}{{ expense[2] }},{% endfor %}],
-                backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        };
-        var expenseChart = new Chart(ctx, {
-            type: 'bar',
-            data: expenseData,
-            options: {
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-    });
-</script>
 {% endblock %}
